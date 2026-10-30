@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Project artifacts (keep small, intentional result files with git add -f if needed)
+pj/data/raw/
+pj/data/processed/
+pj/checkpoints/
+pj/results/raw/
+*.pt
+*.pth
+*.ckpt
+
