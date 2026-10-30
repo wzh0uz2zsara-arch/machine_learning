@@ -1,6 +1,6 @@
 # 模态缺失下的多模态情感分析
 
-本仓库是机器学习课程项目，目标是在 CMU-MOSI 上研究文本（T）、音频（A）、视觉（V）模态缺失时的情感回归。模型输入 MMSA 预提取特征及模态可用性掩码，输出范围为 `[-3, 3]` 的情感分数；统一使用 MAE（越低越好）与 Pearson 相关系数（越高越好）评测。
+本仓库是机器学习课程项目，目标是在 CMU-MOSI 上研究文本（T）、音频（A）、视觉（V）模态缺失时的情感回归。模型输入 MMSA 预提取特征及模态可用性掩码，输出范围为 `[-3, 3]` 的情感分数；统一使用 MAE（越低越好）与 Pearson 相关系数（越高越好）评测。项目不仅要求模型可运行，还要求实验可追溯、比较公平、关键代码可解释，并用实验支持成功或失败的结论。
 
 项目原始要求见 [`pj/requirement.md`](pj/requirement.md)。本文既是协作规范，也是五位组员各自的验收清单。除负责人共同维护的本文件外，每位组员只修改自己任务表中列出的路径，以保证五条开发线可以同时进行。
 
@@ -16,6 +16,27 @@
 | 组员 4 | `feat/member4-missing-fusion` | 自选缺失感知融合模型与消融配置 | `pj/src/models/missing_aware.py`、`pj/configs/fusion/`、`pj/scripts/train_fusion.py`、`pj/tests/test_missing_aware.py` |
 | 组员 5 | `feat/member5-evaluation` | 指标、缺失场景、批量评测、汇总绘图 | `pj/src/evaluation/`、`pj/scripts/evaluate.py`、`pj/scripts/run_experiments.py`、`pj/configs/eval.yaml`、`pj/tests/test_evaluation.py` |
 
+### 1.1 每人所需电脑硬件与系统配置
+
+全组统一使用 Python 环境，禁止因为个人机器不同而改变数据格式或接口。推荐公共环境如下：
+
+- 操作系统：Ubuntu 22.04/24.04 LTS（推荐）或 Windows 10/11 64 位；Windows 用户可使用 PowerShell，路径处理必须跨平台；
+- Python：`3.10.x`，使用 Conda 或 `venv` 建立独立环境；
+- 公共软件：Git 2.40+、PyTorch 2.x、NumPy、SciPy、pandas、PyYAML、scikit-learn、matplotlib、pytest；
+- GPU 环境：NVIDIA 驱动、与所装 PyTorch 匹配的 CUDA runtime；不要求单独安装完整 CUDA Toolkit；
+- 全组最低资源：4 核 CPU、8 GB 内存、20 GB 可用磁盘、稳定网络；建议 8 核 CPU、16 GB 内存和 SSD；
+- 统一依赖最终冻结到 `requirements.txt` 或 `environment.yml`，所有人记录 Python、PyTorch、CUDA、GPU 型号和操作系统版本。
+
+| 组员 | 主要负载 | 最低可用配置 | 推荐配置 | GPU 要求 |
+|---|---|---|---|---|
+| 组员 1 | 下载、解析、padding、归一化、缺失模拟 | 4 核 CPU、16 GB RAM、20 GB 空间 | 8 核 CPU、32 GB RAM、SSD、30 GB 空间 | 不需要；数据测试必须能在 CPU 完成 |
+| 组员 2 | 三个轻量单模态模型的训练与对比 | 4 核 CPU、8 GB RAM；可用 CPU smoke test | 6–8 核 CPU、16 GB RAM、NVIDIA GPU 6 GB+ | 可选但推荐；无 GPU 时减小 batch/epoch 做开发，正式实验借用统一 GPU |
+| 组员 3 | 通用训练循环、拼接模型、检查点测试 | 4 核 CPU、16 GB RAM | 8 核 CPU、16 GB RAM、NVIDIA GPU 6 GB+ | 可选；训练器单测必须支持 CPU，正式训练建议 GPU |
+| 组员 4 | 缺失感知融合、注意力/门控、消融训练 | 6 核 CPU、16 GB RAM、NVIDIA GPU 6 GB | 8 核 CPU、32 GB RAM、NVIDIA GPU 8–12 GB | 强烈需要，是全组 GPU 优先级最高的任务 |
+| 组员 5 | 批量推理、指标聚合、案例分析、绘图 | 4 核 CPU、8 GB RAM、10 GB 空间 | 8 核 CPU、16 GB RAM、SSD | 开发与绘图不需要；全模型批量推理时可使用 GPU 加速 |
+
+显存不足时只能调整 `batch_size`、梯度累积或模型隐藏维度，不能减少固定测试样本或改变评测场景。正式对比应尽量在同一台 GPU、相同软件环境中运行；若使用不同硬件，必须在报告中记录，但 MAE/Pearson 的算法和数据条件保持不变。
+
 ### 工作量对齐原则
 
 每位组员均须完成：
@@ -24,7 +45,8 @@
 2. 一个命令行入口和对应 YAML 配置；
 3. 不少于 3 个单元测试，覆盖正常输入、模态缺失和非法输入；
 4. 一份模块说明文档 `pj/docs/memberN.md`，包含运行命令、实现选择和已知限制；
-5. 至少一次小规模 smoke test，并将日志或结果写入约定目录。
+5. 至少一次小规模 smoke test，并将日志或结果写入约定目录；
+6. 一份独立报告章节 `pj/report/sections/0N_*.md`、一份答辩提纲 `pj/report/slides/memberN.md` 和一份 AI 使用记录 `pj/report/contributions/memberN.md`。
 
 不要把数据集、模型权重、缓存或大体积结果提交到 Git。代码评审以接口兼容、测试通过和结果可复现为验收依据，不以代码行数衡量工作量。
 
@@ -37,6 +59,10 @@ pj/
 │   ├── raw/
 │   └── processed/
 ├── docs/                    # 每人一份 memberN.md
+├── report/
+│   ├── sections/            # 五人分别维护的报告章节
+│   ├── slides/              # 五人分别维护的答辩提纲
+│   └── contributions/       # 成员贡献与 AI 使用记录
 ├── results/                 # 指标 JSON/CSV 与图片
 ├── checkpoints/             # 模型权重（不提交）
 ├── scripts/                 # 训练、评测命令行入口
@@ -243,6 +269,17 @@ output:
 model,run_id,seed,scenario,missing_rate,n_samples,mae,pearson
 ```
 
+### 3.8 公平评测、实验追溯与 AI 使用
+
+- 数据划分：以 `splits.json` 为唯一依据，一旦生成并由全组确认后冻结；所有模型使用相同 ID；
+- 标签预算：只使用固定训练集的 100% 人工标签训练，验证集只用于早停和调参，测试标签只用于最终计算指标；不得引入外部标签、伪标签或人工挑选测试样本；
+- 预训练来源：使用 MMSA 发布的 CMU-MOSI 预提取特征，不自行用测试集微调特征提取器；在报告中列出下载链接、特征名称、维度、文件校验值和访问日期；
+- 调参纪律：所有模型先在验证集确定超参数并冻结，再统一运行测试矩阵；看过测试结果后不得回头选择模型或超参数；
+- 实验清单：每个正式 run 保存完整 YAML、Git commit、随机种子、Python/PyTorch/CUDA 版本、设备型号、checkpoint 路径与开始/结束时间；
+- 结果保留：正面和负面结果都保留，不删除不理想 seed；报告中的每个数字必须能追溯到 raw JSON；
+- AI 使用：每人在 `pj/report/contributions/memberN.md` 记录 AI 工具、主要使用环节、采纳或修改内容、人工验证方法；关键代码必须能脱离 AI 解释并现场修改；
+- 引用规范：数据、MMSA 特征、参考方法和复用代码均记录来源，不把 AI 输出本身当作事实依据。
+
 ## 4. 每位组员的详细任务与验收
 
 ### 组员 1：数据与缺失模拟
@@ -257,9 +294,11 @@ model,run_id,seed,scenario,missing_rate,n_samples,mae,pearson
 - `pj/src/data/transforms.py`：仅使用训练集统计量的标准化；
 - `pj/scripts/prepare_data.py`：数据完整性检查、生成固定划分和统计量；
 - `pj/configs/data.yaml`、`pj/tests/test_data.py`、`pj/docs/member1.md`；
+- `pj/report/sections/01_task_data.md`：任务定义、数据来源、预训练特征来源、固定划分、标签预算和数据限制；
+- `pj/report/slides/member1.md`：答辩中的任务/数据/输入输出部分；`pj/report/contributions/member1.md`：本人贡献与 AI 使用；
 - smoke test 输出 `pj/results/smoke/member1_data.json`，记录样本数、维度、标签范围和各场景实测缺失率。
 
-验收条件：同一 seed 重跑的 mask 完全一致；每个样本至少保留一种模态；三个 split 无 ID 交集；任何统计量均不泄漏测试集。
+验收条件：同一 seed 重跑的 mask 完全一致；每个样本至少保留一种模态；三个 split 无 ID 交集；任何统计量均不泄漏测试集；下载来源、访问日期、文件校验值、特征维度和异常样本处理均有记录。答辩时能够解释一条原始样本如何变成模型 batch。
 
 ### 组员 2：三种单模态基线
 
@@ -271,9 +310,11 @@ model,run_id,seed,scenario,missing_rate,n_samples,mae,pearson
 - `pj/scripts/train_unimodal.py`：通过 `--modality text|audio|vision` 选择模型；
 - `pj/configs/unimodal/text.yaml`、`audio.yaml`、`vision.yaml`；
 - `pj/tests/test_unimodal.py`、`pj/docs/member2.md`；
+- `pj/report/sections/02_unimodal_baselines.md`：三种基线、参数量、训练设置、对照结果和各模态适用条件；
+- `pj/report/slides/member2.md`：答辩中的基线与比较思路；`pj/report/contributions/member2.md`：本人贡献与 AI 使用；
 - 三个模型各完成一个小规模训练，结果写入 `pj/results/smoke/member2_{text,audio,vision}.json`。
 
-验收条件：三个模型均严格满足 3.4 节接口；未选择的模态置换为随机值时预测不变；目标模态缺失时仍返回有限值且不报错；参数量与训练时间写入文档。
+验收条件：三个模型均严格满足 3.4 节接口；未选择的模态置换为随机值时预测不变；目标模态缺失时仍返回有限值且不报错；参数量与训练时间写入文档；三种模型使用相同训练预算。答辩时能够解释池化、回归头和单模态基线为何是必要对照。
 
 ### 组员 3：拼接基线与通用训练器
 
@@ -285,11 +326,15 @@ model,run_id,seed,scenario,missing_rate,n_samples,mae,pearson
 - `pj/src/training/trainer.py`：训练/验证循环、梯度裁剪、早停；
 - `pj/src/training/checkpoint.py`：严格实现 3.5 节格式；
 - `pj/src/training/seed.py`：固定 Python/NumPy/PyTorch 随机性；
+- `requirements.txt` 或 `environment.yml`：冻结全组可复现环境；
+- `pj/src/training/manifest.py`：保存 Git commit、配置、随机种子、设备和软件版本等 run manifest；
 - `pj/scripts/train_concat.py`、`pj/configs/concat.yaml`；
 - `pj/tests/test_training.py`、`pj/docs/member3.md`；
+- `pj/report/sections/03_training_reproducibility.md`：拼接基线、公平训练预算、早停、调参与复现环境；
+- `pj/report/slides/member3.md`：答辩中的训练流程与公平性；`pj/report/contributions/member3.md`：本人贡献与 AI 使用；
 - smoke test 输出 `pj/results/smoke/member3_concat.json` 和一个可加载的本地检查点（检查点不提交）。
 
-验收条件：能够用合成数据完成至少 2 个 epoch；保存后加载的预测一致；验证 MAE 改善时更新 best checkpoint；训练器可接收任意满足 3.4 节的模型。
+验收条件：能够用合成数据完成至少 2 个 epoch；保存后加载的预测一致；验证 MAE 改善时更新 best checkpoint；训练器可接收任意满足 3.4 节的模型；每次实验自动落盘完整 manifest。答辩时能够解释测试集为何不能参与早停或调参，并现场修改一个训练超参数。
 
 ### 组员 4：缺失感知融合模型
 
@@ -302,9 +347,11 @@ model,run_id,seed,scenario,missing_rate,n_samples,mae,pearson
 - `pj/scripts/train_fusion.py`；
 - `pj/configs/fusion/default.yaml`、`no_mask.yaml`、`no_gating.yaml`；
 - `pj/tests/test_missing_aware.py`、`pj/docs/member4.md`；
+- `pj/report/sections/04_missing_aware_method.md`：自选方法、关键公式/结构、消融实验、负面结果和适用条件；
+- `pj/report/slides/member4.md`：答辩中的改进方法与消融；`pj/report/contributions/member4.md`：本人贡献与 AI 使用；
 - smoke test 输出 `pj/results/smoke/member4_fusion.json`，包含完整输入和至少三种单模态缺失情况。
 
-验收条件：满足 3.4 节接口；更改缺失模态的特征不会改变输出；融合权重在可用模态上归一化、缺失模态权重为 0；完成两项消融的最小可运行验证。
+验收条件：满足 3.4 节接口；更改缺失模态的特征不会改变输出；融合权重在可用模态上归一化、缺失模态权重为 0；完成两项消融的最小可运行验证；无论是否涨分都用实验解释。答辩时能够解释并现场修改 mask-aware 融合的关键代码。
 
 ### 组员 5：评测、实验矩阵与可视化
 
@@ -317,11 +364,14 @@ model,run_id,seed,scenario,missing_rate,n_samples,mae,pearson
 - `pj/src/evaluation/scenarios.py`：定义八种固定场景并复用组员 1 的缺失函数；
 - `pj/src/evaluation/aggregate.py`：校验 JSON schema、汇总 CSV、均值/标准差；
 - `pj/src/evaluation/plot.py`：完整/缺失对比柱状图及随机缺失率曲线；
+- `pj/src/evaluation/case_analysis.py`：按误差与场景选择成功/失败案例，不允许手工只挑有利样本；
 - `pj/scripts/evaluate.py`、`pj/scripts/run_experiments.py`、`pj/configs/eval.yaml`；
 - `pj/tests/test_evaluation.py`、`pj/docs/member5.md`；
+- `pj/report/sections/05_results_analysis.md`：核心图表、对照实验、成功/失败案例、结论、局限和适用条件；
+- `pj/report/slides/member5.md`：答辩中的结果/案例/结论；`pj/report/contributions/member5.md`：本人贡献与 AI 使用；
 - smoke test 输出 `pj/results/smoke/member5_evaluation.json`、`pj/results/summary.csv` 和 `pj/results/figures/smoke.png`。
 
-验收条件：手工样例的 MAE/Pearson 正确；不同模型对同一场景使用完全相同的样本 ID 与 mask；缺文件或 schema 错误时给出明确报错；图表可由原始 JSON 一条命令重新生成。
+验收条件：手工样例的 MAE/Pearson 正确；不同模型对同一场景使用完全相同的样本 ID 与 mask；缺文件或 schema 错误时给出明确报错；图表可由原始 JSON 一条命令重新生成；案例选择规则可复现且同时包含成功和失败样本。答辩时能够从图表追溯到逐样本预测并解释 Pearson 与 MAE 的差异。
 
 ## 5. Git 协作流程
 
@@ -348,6 +398,7 @@ git push origin HEAD
 - 复现命令；
 - 测试结果；
 - smoke test 结果路径；
+- 报告章节、答辩提纲、本人贡献及 AI 使用记录；
 - 尚未解决的问题。
 
 禁止直接 push 到 `main`。不要在个人分支大范围格式化或移动他人目录。若必须使用尚未合并的其他模块，先依据本文接口用最小 mock 开发，等对应 PR 合并后再做联调。
@@ -371,5 +422,33 @@ git push origin HEAD
 - 完整输入、分别缺少 T/A/V、四档随机缺失均有结果；
 - 原始逐样本预测、汇总 CSV 和图表之间可以相互追溯；
 - MAE 与 Pearson 均按三次独立种子报告均值和标准差；
+- 每个模型都报告公平对照；自选方法至少有 `no_mask`、`no_gating` 两项消融，负面结果不得隐去；
+- 报告包含任务、数据、方法、结果、成功/失败案例、结论、局限、成员贡献、AI 使用和引用来源；
+- 五位成员都能解释本人关键代码和实验选择，并准备至少一个可能的答辩问题及答案；
 - 所有测试通过，仓库中不包含数据集、缓存或模型权重等大文件。
+
+## 8. 决定项目质量的关键任务
+
+按风险和对最终成绩的影响排序：
+
+| 优先级 | 关键任务 | 主要负责人 | 为什么关键 | 失败后果 |
+|---|---|---|---|---|
+| P0 | 固定且无泄漏的数据管线 | 组员 1 | 所有结果的地基；划分、归一化或 mask 出错会污染全部模型 | 指标失真，整套实验需要重跑 |
+| P0 | 公平、确定性的缺失场景 | 组员 1 + 组员 5 | 不同模型必须面对完全相同的样本与 mask 才能比较 | “改进”可能只是抽到了更容易的缺失样本 |
+| P0 | 统一训练/记录/测试隔离 | 组员 3 | 防止测试集调参，并保证每个数字可由配置和 checkpoint 复现 | 结果无法自证，答辩容易被质疑 |
+| P1 | 扎实的单模态与拼接基线 | 组员 2 + 组员 3 | 没有强且公平的基线，就无法说明自选融合是否有价值 | 即使新模型分数高，也缺乏可信对照 |
+| P1 | 真正使用可用性掩码的融合与消融 | 组员 4 | 这是项目主题和主要技术亮点，必须证明增益来自哪里 | 项目退化为普通特征拼接，主题不突出 |
+| P1 | 系统评测与成功/失败案例分析 | 组员 5 | 新要求明确看重证据、适用条件、负面结果和局限 | 只有数字没有结论，报告和答辩说服力弱 |
+| P2 | 报告、AI 使用说明与答辩演练 | 全员，负责人整合 | 老师会检查可解释性、贡献和现场修改能力 | 代码完成但无法讲清，影响最终评价 |
+
+最值得投入时间的不是继续堆复杂模型，而是先守住三个底线：数据无泄漏、比较条件完全一致、每张表都能追溯。底线满足后，再优化组员 4 的融合方法。自选方法即使没有超过拼接基线，只要消融、失败案例和适用条件分析可信，仍然符合项目要求；相反，单次高分但划分不公平或无法复现，会严重降低项目质量。
+
+### 负责人最终把关清单
+
+1. 冻结 `splits.json`、依赖文件和接口后再开始正式实验；
+2. 先验收单模态与拼接基线，再允许比较自选融合；
+3. 正式测试前锁定超参数，统一运行三个 seed 和八种场景；
+4. 随机抽查报告中的三个数字，能否追溯到配置、commit、checkpoint 和逐样本预测；
+5. 组织一次交叉答辩：每人解释自己的关键代码，并让另一位成员提出修改要求；
+6. 最终报告与 slides 由负责人整合，但技术内容和 AI 使用记录由对应成员签字确认。
 
